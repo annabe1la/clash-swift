@@ -6,7 +6,7 @@
 
 <em>Native macOS Clash (mihomo) client, built with SwiftUI — full window + menu bar.</em>
 
-![platform](https://img.shields.io/badge/macOS-13%2B-111111?style=flat-square&logo=apple)
+![platform](https://img.shields.io/badge/macOS-14%2B-111111?style=flat-square&logo=apple)
 ![swift](https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift)
 ![ui](https://img.shields.io/badge/UI-SwiftUI-0A84FF?style=flat-square)
 ![i18n](https://img.shields.io/badge/i18n-中文%20%7C%20English-34C759?style=flat-square)
@@ -48,7 +48,7 @@ Models/              纯数据模型
 
 ## 📦 构建
 
-要求：Xcode（Swift 6）· macOS 13+
+要求：Xcode 16+（Swift 6）· 运行 macOS 14+
 
 ```sh
 # 在 Xcode 打开 clash-swift.xcodeproj 直接 Run，或用脚本打包：
@@ -78,3 +78,7 @@ BUNDLE_CORE=1 Scripts/package.sh   # 额外把 mihomo 核心打进 app，产出�
 - [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) — 内核
 - [Sitoi/ClashBar](https://github.com/Sitoi/ClashBar) — 核心层实现参考
 - [clash-verge-rev](https://github.com/clash-verge-rev/clash-verge-rev) — 功能蓝图
+
+## 📄 许可证
+
+本项目基于 [GPL-3.0](./LICENSE) 开源。因核心层迁移自同为 GPL-3.0 的 ClashBar，本项目亦遵循 GPL-3.0。

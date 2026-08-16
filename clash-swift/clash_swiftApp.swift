@@ -2,31 +2,50 @@
 //  clash_swiftApp.swift
 //  clash-swift
 //
-//  Created by AnNabe1la on 2026/8/4.
+//  原生 macOS Clash(mihomo) 客户端：全窗口 + 菜单栏。
 //
 
+import AppKit
 import SwiftUI
-import SwiftData
 
 @main
-struct clash_swiftApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+struct ClashSwiftApp: App {
+    @StateObject private var appModel = AppModel(dependencies: .live)
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainWindowView()
+                .frame(minWidth: 820, minHeight: 560)
+                .preferredColorScheme(self.colorScheme(for: self.appModel.appearance))
+                .environmentObject(self.appModel)
+                .environmentObject(self.appModel.trafficStore)
+                .environmentObject(self.appModel.connectionsStore)
+                .environmentObject(self.appModel.proxyStore)
+                .environmentObject(self.appModel.logsStore)
+                .task { self.appModel.bootstrap() }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.willTerminateNotification))
+                { _ in
+                    self.appModel.shutdownForTermination()
+                }
         }
-        .modelContainer(sharedModelContainer)
+        .defaultSize(width: 980, height: 640)
+
+        MenuBarExtra {
+            MenuBarContent()
+                .environmentObject(self.appModel)
+                .environmentObject(self.appModel.trafficStore)
+        } label: {
+            Image(systemName: self.appModel.isRunning ? "network" : "network.slash")
+        }
+        .menuBarExtraStyle(.menu)
+    }
+
+    private func colorScheme(for mode: AppAppearanceMode) -> ColorScheme? {
+        switch mode {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
     }
 }

@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Xcode / build
+build/
+DerivedData/
+*.xcuserdatad
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# SPM
+.swiftpm/
+.build/
+
+# 本项目打包产物
+dist/
+.build-dist/
+
+# 覆盖率/临时
+*.profraw
+*.profdata
+
+# 会话便签（个人本地文件）
+clash-swift/resume.swift

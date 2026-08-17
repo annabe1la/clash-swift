@@ -37,6 +37,11 @@ final class AppModel: ObservableObject {
     /// 系统代理免签名后备（networksetup + 管理员授权）。
     private let systemProxyFallback: SystemProxyFallbackService
 
+    /// 诊断（内核进程扫描 + 系统代理读数）。
+    private let diagnosticsService = DiagnosticsService()
+    @Published private(set) var coreProcesses: [CoreProcessInfo] = []
+    @Published private(set) var systemProxyReadout: SystemProxyReadout?
+
     /// 订阅服务（下载/流量头/元数据）。
     private let subscriptionService: SubscriptionService
     @Published private(set) var subscriptionMetas: [String: SubscriptionMeta] = [:]
@@ -112,6 +117,12 @@ final class AppModel: ObservableObject {
 
     var isRunning: Bool { self.coreRepository.isRunning }
     var controllerDisplay: String { self.clientController }
+
+    /// 我们自己管理的内核 PID（用于诊断页区分自己 vs 其他内核）。
+    var ourCorePID: Int32? {
+        if case let .running(pid) = self.lifecycle { return pid }
+        return nil
+    }
     var detectedBinaryPath: String? { self.coreRepository.detectedBinaryPath }
 
     private var didBootstrap = false
@@ -808,6 +819,29 @@ final class AppModel: ObservableObject {
         } catch {
             self.errorMessage = "设置开机启动失败：\(error.localizedDescription)"
         }
+    }
+
+    // MARK: - 诊断（内核冲突 / 代理指向）
+
+    func refreshDiagnostics() async {
+        let svc = self.diagnosticsService
+        let cores = await Task.detached { svc.scanCores() }.value
+        let proxy = await Task.detached { svc.readSystemProxyState() }.value
+        self.coreProcesses = cores
+        self.systemProxyReadout = proxy
+    }
+
+    /// 结束其他（非本 App 管理的）内核进程，化解冲突。
+    func killCore(pid: Int32) async {
+        guard pid != self.ourCorePID else { return }
+        let result = kill(pid, SIGTERM)
+        if result != 0 {
+            self.errorMessage = "\(L("结束进程失败", "Failed to terminate")) \(pid)（\(L("可能属于 root，需手动处理", "may be root-owned"))）"
+        } else {
+            self.actionMessage = "\(L("已结束内核进程", "Terminated core")) \(pid)"
+        }
+        try? await Task.sleep(for: .milliseconds(400))
+        await self.refreshDiagnostics()
     }
 
     // MARK: - 健康监控 / 崩溃自愈（方案 C）

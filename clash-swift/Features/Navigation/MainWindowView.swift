@@ -31,6 +31,7 @@ struct MainWindowView: View {
         case .connections: ConnectionsView()
         case .rules: RulesView()
         case .logs: LogsView()
+        case .diagnostics: DiagnosticsView()
         case .settings: SettingsView()
         }
     }

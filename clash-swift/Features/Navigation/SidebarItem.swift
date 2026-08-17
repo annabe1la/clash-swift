@@ -8,6 +8,7 @@ enum SidebarItem: String, CaseIterable, Hashable, Identifiable {
     case connections
     case rules
     case logs
+    case diagnostics
     case settings
 
     var id: String { self.rawValue }
@@ -20,6 +21,7 @@ enum SidebarItem: String, CaseIterable, Hashable, Identifiable {
         case .connections: L("连接", "Connections")
         case .rules: L("规则", "Rules")
         case .logs: L("日志", "Logs")
+        case .diagnostics: L("诊断", "Diagnostics")
         case .settings: L("设置", "Settings")
         }
     }
@@ -32,6 +34,7 @@ enum SidebarItem: String, CaseIterable, Hashable, Identifiable {
         case .connections: "link"
         case .rules: "arrow.left.arrow.right"
         case .logs: "doc.text.fill"
+        case .diagnostics: "stethoscope"
         case .settings: "gearshape.fill"
         }
     }

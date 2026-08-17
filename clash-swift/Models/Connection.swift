@@ -121,19 +121,27 @@ struct ConnectionMetadata: Codable, Equatable {
     let sourceIP: String?
     let destinationIP: String?
     let host: String?
+    let process: String?
+    let processPath: String?
 
     private enum CodingKeys: String, CodingKey {
         case network
         case sourceIP
         case destinationIP
         case host
+        case process
+        case processPath
     }
 
-    init(network: String?, sourceIP: String?, destinationIP: String?, host: String?) {
+    init(network: String?, sourceIP: String?, destinationIP: String?, host: String?,
+         process: String? = nil, processPath: String? = nil)
+    {
         self.network = network
         self.sourceIP = sourceIP
         self.destinationIP = destinationIP
         self.host = host
+        self.process = process
+        self.processPath = processPath
     }
 
     init(from decoder: Decoder) throws {
@@ -150,6 +158,10 @@ struct ConnectionMetadata: Codable, Equatable {
                 keys: ["destination_ip", "destination", "remoteIP", "remoteAddress"])
         self.host = try container.decodeIfPresent(String.self, forKey: .host).trimmedNonEmpty
             ?? ConnectionAnyCodingKey.decodeString(in: dynamic, keys: ["destinationHost", "remoteHost", "addr"])
+        self.process = try container.decodeIfPresent(String.self, forKey: .process).trimmedNonEmpty
+            ?? ConnectionAnyCodingKey.decodeString(in: dynamic, keys: ["processName"])
+        self.processPath = try container.decodeIfPresent(String.self, forKey: .processPath).trimmedNonEmpty
+            ?? ConnectionAnyCodingKey.decodeString(in: dynamic, keys: ["process_path"])
     }
 }
 

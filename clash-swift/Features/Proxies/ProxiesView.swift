@@ -74,9 +74,7 @@ private struct ProvidersCard: View {
                 }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+        .cardSurface()
     }
 
     private func providerRow(name: String, detail: ProviderDetail) -> some View {
@@ -191,9 +189,7 @@ private struct ProxyGroupCard: View {
                 }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+        .cardSurface()
     }
 }
 

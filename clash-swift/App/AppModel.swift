@@ -1052,6 +1052,8 @@ final class AppModel: ObservableObject {
 
     private func applyTraffic(_ snapshot: TrafficSnapshot) {
         self.trafficStore.traffic = snapshot
+        if let upTotal = snapshot.upTotal { self.trafficStore.displayUpTotal = upTotal }
+        if let downTotal = snapshot.downTotal { self.trafficStore.displayDownTotal = downTotal }
         var up = self.trafficStore.trafficHistoryUp
         var down = self.trafficStore.trafficHistoryDown
         up.append(snapshot.up)

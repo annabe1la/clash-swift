@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/icon.png" width="120" alt="Clash Swift" />
+
 # Clash Swift
 
 原生 macOS Clash / mihomo 客户端 · SwiftUI 全窗口 + 菜单栏

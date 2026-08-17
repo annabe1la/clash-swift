@@ -230,6 +230,13 @@ final class AppModel: ObservableObject {
             return
         }
 
+        // 启动前检测端口占用（控制器/入站被别的内核占用会导致启动失败）。
+        if let conflict = await self.detectPortConflicts(configPath: configPath) {
+            self.lifecycle = .failed(reason: conflict)
+            self.errorMessage = conflict
+            return
+        }
+
         // 启动前必须校验配置（mihomo -t），否则会拉起后立刻崩。
         do {
             try await self.coreRepository.validateConfig(configPath: configPath)
@@ -245,7 +252,7 @@ final class AppModel: ObservableObject {
 
         do {
             self.lifecycle = .starting
-            _ = try await self.coreRepository.start(
+            self.lifecycle = try await self.coreRepository.start(
                 configPath: configPath,
                 controller: self.launchController)
             await self.completeCoreBootstrap()
@@ -271,7 +278,7 @@ final class AppModel: ObservableObject {
             self.clientController = Self.normalizeControllerForClient(self.launchController)
             self.controllerSecret = self.secretFromConfig(at: configPath)
             self.lifecycle = .starting
-            _ = try await self.coreRepository.restart(
+            self.lifecycle = try await self.coreRepository.restart(
                 configPath: configPath,
                 controller: self.launchController)
             await self.completeCoreBootstrap()
@@ -819,6 +826,33 @@ final class AppModel: ObservableObject {
         } catch {
             self.errorMessage = "设置开机启动失败：\(error.localizedDescription)"
         }
+    }
+
+    /// 启动前检测配置中的端口（控制器 + 入站）是否已被其他进程占用。
+    private func detectPortConflicts(configPath: String) async -> String? {
+        var ports: [(port: Int, label: String)] = []
+        if let ctrl = Self.parseYAMLTopLevelScalar(forKey: "external-controller", atPath: configPath),
+           let colon = ctrl.lastIndex(of: ":"), let p = Int(ctrl[ctrl.index(after: colon)...]), p > 0
+        {
+            ports.append((p, "external-controller"))
+        }
+        for key in ["mixed-port", "port", "socks-port"] {
+            if let value = Self.parseYAMLTopLevelScalar(forKey: key, atPath: configPath),
+               let p = Int(value), p > 0
+            {
+                ports.append((p, key))
+            }
+        }
+        let svc = self.diagnosticsService
+        for entry in ports {
+            let owner = await Task.detached { svc.portOwner(entry.port) }.value
+            if let owner, owner.pid != self.ourCorePID {
+                return "\(entry.label) \(L("端口", "port")) \(entry.port) "
+                    + "\(L("已被占用", "is in use"))（\(owner.command) PID \(owner.pid)）——"
+                    + L("请先停止占用它的程序，或修改配置端口。", "stop that process or change the port in the config.")
+            }
+        }
+        return nil
     }
 
     // MARK: - 诊断（内核冲突 / 代理指向）

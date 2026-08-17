@@ -74,6 +74,17 @@ struct DiagnosticsService: Sendable {
         return map
     }
 
+    /// 查某 TCP 端口的监听者：返回 (pid, 命令名)。无人监听返回 nil。
+    func portOwner(_ port: Int) -> (pid: Int32, command: String)? {
+        let out = Self.run("/usr/sbin/lsof", ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN"])
+        for line in out.split(separator: "\n").dropFirst() {
+            let cols = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard cols.count >= 2, let pid = Int32(cols[1]) else { continue }
+            return (pid, String(cols[0]))
+        }
+        return nil
+    }
+
     // MARK: 系统代理读数
 
     func readSystemProxyState() -> SystemProxyReadout {

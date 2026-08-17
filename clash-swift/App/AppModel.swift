@@ -594,14 +594,19 @@ final class AppModel: ObservableObject {
 
     /// 从订阅 URL 导入。
     func importConfig(fromURL urlString: String) async {
+        self.errorMessage = nil
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmed), self.configRepository.isSupportedRemoteConfigURL(url) else {
-            self.errorMessage = "无效的订阅链接。"
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https"
+        else {
+            self.errorMessage = L("无效的订阅链接，需以 http(s):// 开头。",
+                                  "Invalid subscription link; must start with http(s)://.")
             return
         }
         do {
             let result = try await self.subscriptionService.download(from: url)
-            let name = self.configRepository.inferredRemoteConfigFileName(from: url)
+            let name = result.suggestedName
+                ?? self.configRepository.inferredRemoteConfigFileName(from: url)
             let target = self.workingDirectory.configDirectoryURL
                 .appendingPathComponent(name, isDirectory: false)
             try self.configRepository.writeConfigData(result.data, to: target)
@@ -609,8 +614,9 @@ final class AppModel: ObservableObject {
                 url: trimmed, userInfo: result.userInfo, updatedAt: Date())
             self.subscriptionService.save(self.subscriptionMetas)
             self.refreshConfigs()
+            self.actionMessage = "\(L("已导入", "Imported"))：\(target.lastPathComponent)"
         } catch {
-            self.errorMessage = "导入订阅失败：\(error.localizedDescription)"
+            self.errorMessage = "\(L("导入订阅失败", "Import failed"))：\(error.localizedDescription)"
         }
     }
 

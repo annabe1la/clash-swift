@@ -13,6 +13,15 @@ struct ProfilesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 self.importCard
+                if let error = self.appModel.errorMessage {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                        .textSelection(.enabled)
+                }
                 self.listCard
             }
             .padding(20)

@@ -38,7 +38,7 @@ struct ClashSwiftApp: App {
         } label: {
             Image(systemName: self.appModel.isRunning ? "network" : "network.slash")
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 
     private func colorScheme(for mode: AppAppearanceMode) -> ColorScheme? {

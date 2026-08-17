@@ -128,6 +128,17 @@ struct DiagnosticsService: Sendable {
         return ProxyEntry(enabled: enabled, server: server, port: port)
     }
 
+    // MARK: 结束进程（管理员）
+
+    /// 以管理员权限结束进程（用于 root 拥有的内核/特权服务）。弹一次授权。
+    func killElevated(pid: Int32) -> Bool {
+        let source = "do shell script \"/bin/kill -TERM \(pid)\" with administrator privileges"
+        guard let script = NSAppleScript(source: source) else { return false }
+        var error: NSDictionary?
+        script.executeAndReturnError(&error)
+        return error == nil
+    }
+
     // MARK: shell
 
     private static func run(_ path: String, _ args: [String]) -> String {

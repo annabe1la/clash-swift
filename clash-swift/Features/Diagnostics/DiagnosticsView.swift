@@ -106,6 +106,15 @@ struct DiagnosticsView: View {
                               systemImage: "exclamationmark.triangle.fill")
                             .font(.caption).foregroundStyle(.orange)
                     }
+                    if readout.anyEnabled {
+                        Button(role: .destructive) {
+                            Task { await self.appModel.clearForeignSystemProxy() }
+                        } label: {
+                            Label(L("清除系统代理", "Clear system proxy"), systemImage: "xmark.shield")
+                        }
+                        .controlSize(.small)
+                        .padding(.top, 2)
+                    }
                     if !readout.anyEnabled, !self.appModel.isTunEnabled {
                         Text(L("系统代理与 TUN 均未开启——流量不会经过本内核。",
                                "Neither system proxy nor TUN is on — traffic won't go through this core."))

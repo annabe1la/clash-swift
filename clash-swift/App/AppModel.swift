@@ -831,17 +831,42 @@ final class AppModel: ObservableObject {
         self.systemProxyReadout = proxy
     }
 
-    /// 结束其他（非本 App 管理的）内核进程，化解冲突。
+    /// 结束其他（非本 App 管理的）内核进程；普通权限失败则升级到管理员授权。
     func killCore(pid: Int32) async {
         guard pid != self.ourCorePID else { return }
-        let result = kill(pid, SIGTERM)
-        if result != 0 {
-            self.errorMessage = "\(L("结束进程失败", "Failed to terminate")) \(pid)（\(L("可能属于 root，需手动处理", "may be root-owned"))）"
-        } else {
+        self.errorMessage = nil
+        var ok = kill(pid, SIGTERM) == 0
+        if !ok {
+            // root 拥有（如特权服务）→ 管理员授权结束
+            let svc = self.diagnosticsService
+            ok = await Task.detached { svc.killElevated(pid: pid) }.value
+        }
+        if ok {
             self.actionMessage = "\(L("已结束内核进程", "Terminated core")) \(pid)"
+        } else {
+            self.errorMessage = L("结束进程失败（可能已被系统服务守护并自动重启，请从对应客户端里关闭）。",
+                                  "Failed to terminate (may be relaunched by a system service; stop it from its own client).")
         }
         try? await Task.sleep(for: .milliseconds(400))
         await self.refreshDiagnostics()
+    }
+
+    /// 清除当前系统代理设置（用于别的程序占用了系统代理时化解冲突）。走管理员 networksetup。
+    func clearForeignSystemProxy() async {
+        self.proxyStore.isProxySyncing = true
+        defer { self.proxyStore.isProxySyncing = false }
+        let service = self.systemProxyFallback
+        do {
+            try await Task.detached {
+                try service.apply(enabled: false, host: "127.0.0.1", port: 0)
+            }.value
+            self.isSystemProxyEnabled = false
+            self.systemProxyStatusText = nil
+            self.actionMessage = L("已清除系统代理设置", "System proxy cleared")
+            await self.refreshDiagnostics()
+        } catch {
+            self.errorMessage = "\(L("清除系统代理失败", "Failed to clear system proxy"))：\(error.localizedDescription)"
+        }
     }
 
     // MARK: - 健康监控 / 崩溃自愈（方案 C）

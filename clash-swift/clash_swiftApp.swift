@@ -16,6 +16,7 @@ struct ClashSwiftApp: App {
         WindowGroup {
             MainWindowView()
                 .frame(minWidth: 820, minHeight: 560)
+                .tint(self.appModel.accent.color)
                 .preferredColorScheme(self.colorScheme(for: self.appModel.appearance))
                 .environmentObject(self.appModel)
                 .environmentObject(self.appModel.trafficStore)

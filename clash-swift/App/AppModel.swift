@@ -71,6 +71,11 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(self.appearance.rawValue, forKey: "appearance") }
     }
 
+    /// 强调色主题。
+    @Published var accent: AppAccent = .blue {
+        didSet { UserDefaults.standard.set(self.accent.rawValue, forKey: "accent") }
+    }
+
     /// 折叠的代理组名（持久化）。
     @Published var collapsedGroups: Set<String> = [] {
         didSet { UserDefaults.standard.set(Array(self.collapsedGroups), forKey: "collapsedGroups") }
@@ -137,6 +142,8 @@ final class AppModel: ObservableObject {
         self.autoRestartEnabled = (UserDefaults.standard.object(forKey: "autoRestartEnabled") as? Bool) ?? true
         self.appearance = UserDefaults.standard.string(forKey: "appearance")
             .flatMap(AppAppearanceMode.init(rawValue:)) ?? .system
+        self.accent = UserDefaults.standard.string(forKey: "accent")
+            .flatMap(AppAccent.init(rawValue:)) ?? .blue
         self.collapsedGroups = Set(UserDefaults.standard.stringArray(forKey: "collapsedGroups") ?? [])
         self.overrideService = ConfigOverrideService(
             workingDirectory: dependencies.workingDirectoryManager)

@@ -6,6 +6,7 @@ struct RulesView: View {
     @EnvironmentObject private var proxyStore: ProxyStore
     @State private var search = ""
     @State private var typeFilter: RulesTypeFilter = .all
+    @State private var groupByPolicy = false
 
     private var filtered: [RuleItem] {
         self.proxyStore.ruleItems.filter { rule in
@@ -27,6 +28,17 @@ struct RulesView: View {
             } else if self.filtered.isEmpty {
                 ContentUnavailableView(L("暂无规则", "No rules"), systemImage: "arrow.left.arrow.right")
                     .frame(maxHeight: .infinity)
+            } else if self.groupByPolicy {
+                List {
+                    ForEach(self.grouped, id: \.policy) { group in
+                        Section("\(group.policy) · \(group.rules.count)") {
+                            ForEach(Array(group.rules.enumerated()), id: \.offset) { _, rule in
+                                RuleRow(rule: rule)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.inset)
             } else {
                 List(Array(self.filtered.enumerated()), id: \.offset) { _, rule in
                     RuleRow(rule: rule)
@@ -51,6 +63,10 @@ struct RulesView: View {
             .fixedSize()
             Text("\(self.proxyStore.rulesCount)")
                 .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            Toggle(isOn: self.$groupByPolicy) {
+                Label(L("分组", "Group"), systemImage: "square.stack.3d.up")
+            }
+            .toggleStyle(.button).controlSize(.small)
             Button {
                 Task { await self.appModel.refreshRules() }
             } label: {
@@ -87,6 +103,12 @@ struct RulesView: View {
         case .ruleSet: L("规则集", "Rule-set")
         case .other: L("其他", "Other")
         }
+    }
+
+    private var grouped: [(policy: String, rules: [RuleItem])] {
+        Dictionary(grouping: self.filtered, by: { $0.proxy?.trimmedNonEmpty ?? "—" })
+            .map { (policy: $0.key, rules: $0.value) }
+            .sorted { $0.rules.count > $1.rules.count }
     }
 
     private func matchesSearch(_ rule: RuleItem) -> Bool {

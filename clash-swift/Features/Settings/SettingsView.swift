@@ -83,6 +83,24 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+
+                HStack {
+                    Text(L("强调色", "Accent"))
+                    Spacer()
+                    HStack(spacing: 8) {
+                        ForEach(AppAccent.allCases) { accent in
+                            Circle()
+                                .fill(accent.color)
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    Circle().stroke(Color.primary.opacity(
+                                        self.appModel.accent == accent ? 0.9 : 0), lineWidth: 2))
+                                .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 0.5))
+                                .onTapGesture { self.appModel.accent = accent }
+                                .help(accent.title)
+                        }
+                    }
+                }
             }
         }
     }

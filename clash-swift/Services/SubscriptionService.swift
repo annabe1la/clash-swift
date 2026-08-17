@@ -25,9 +25,27 @@ struct SubscriptionService {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
     }
 
+    /// 直连 session（禁用系统代理）——订阅下载不应经过代理，
+    /// 否则系统代理指向的内核异常/冲突时会失败，且与其他 clash 客户端行为不一致。
+    private static let directSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.connectionProxyDictionary = [:] // 关闭代理
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+
     /// 依次尝试的 UA（覆盖不同机场的 UA 白名单）。
     private static var userAgents: [String] {
-        ["clash-verge/v\(appVersion)", "clash.meta", "mihomo", "clash"]
+        [
+            "clash-verge/v\(appVersion)",
+            "clash.meta",
+            "mihomo",
+            "ClashforWindows/0.20.39",
+            "Clash",
+            "clash",
+        ]
     }
 
     // MARK: 持久化
@@ -53,20 +71,29 @@ struct SubscriptionService {
     // MARK: 下载
 
     func download(from url: URL) async throws -> SubscriptionDownloadResult {
-        var lastPreview = ""
-        for (index, ua) in Self.userAgents.enumerated() {
-            let (raw, http) = try await self.fetch(url: url, userAgent: ua)
-            if let normalized = Self.normalizeToClash(raw) {
-                return SubscriptionDownloadResult(
-                    data: normalized,
-                    userInfo: Self.parseUserInfo(from: http),
-                    suggestedName: Self.parseFilename(from: http),
-                    updateIntervalHours: Self.parseUpdateInterval(from: http))
+        var lastPreview: String?      // 拿到过 2xx 但内容不是 clash
+        var lastRequestError: Error?  // 网络错误 / 非 2xx（如 403）
+        for ua in Self.userAgents {
+            do {
+                let (raw, http) = try await self.fetch(url: url, userAgent: ua)
+                if let normalized = Self.normalizeToClash(raw) {
+                    return SubscriptionDownloadResult(
+                        data: normalized,
+                        userInfo: Self.parseUserInfo(from: http),
+                        suggestedName: Self.parseFilename(from: http),
+                        updateIntervalHours: Self.parseUpdateInterval(from: http))
+                }
+                // 2xx 但内容不是 clash（可能该 UA 返回了别的格式）→ 换下一个 UA
+                lastPreview = String(data: raw.prefix(400), encoding: .utf8) ?? "<二进制数据>"
+            } catch {
+                // 403/超时等 → 换下一个 UA 再试，不要提前中断
+                lastRequestError = error
             }
-            lastPreview = String(data: raw.prefix(400), encoding: .utf8) ?? "<二进制数据>"
-            _ = index
         }
-        throw Self.contentError(preview: lastPreview)
+        // 有过 2xx 响应 → 报内容错误更有用；否则报请求错误（如 403）
+        if let preview = lastPreview { throw Self.contentError(preview: preview) }
+        throw lastRequestError ?? SubscriptionError.content(
+            L("下载失败：所有客户端标识均被服务器拒绝。", "Download failed: all user-agents were rejected."))
     }
 
     /// 单次请求（含 Basic Auth、重定向由 URLSession 默认跟随）。
@@ -91,7 +118,7 @@ struct SubscriptionService {
         }
         _ = cleanURL
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await Self.directSession.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw SubscriptionError.network(L("无响应", "no response"))
         }
@@ -209,7 +236,11 @@ enum SubscriptionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .network(msg): "\(L("网络错误", "Network error"))：\(msg)"
-        case let .status(code): "\(L("下载失败，HTTP", "Download failed, HTTP")) \(code)"
+        case let .status(code):
+            code == 403
+                ? L("服务器拒绝(403)：订阅可能限制客户端标识、令牌无效或需在浏览器打开确认。",
+                    "Rejected (403): the subscription may restrict clients, or the token is invalid.")
+                : "\(L("下载失败，HTTP", "Download failed, HTTP")) \(code)"
         case let .content(msg): msg
         }
     }

@@ -854,20 +854,9 @@ final class AppModel: ObservableObject {
             }
         }
         self.override.tunEnabled = target
-        try? self.overrideService.saveOverride(self.override)
-
-        if self.isRunning {
-            do {
-                try await self.client().requestNoResponse(
-                    .patchConfigs(body: ["tun": .object(["enable": .bool(target)])]))
-                self.isTunEnabled = target
-            } catch {
-                await self.restartCore() // PATCH 不支持时重启应用 effective.yaml
-                self.isTunEnabled = target
-            }
-        } else {
-            self.isTunEnabled = target
-        }
+        self.isTunEnabled = target
+        // 通过重启应用完整 effective TUN 块（stack/排除网段/dns-hijack 等 PATCH 带不了）。
+        await self.applyOverrides()
     }
 
     func refreshLaunchAtLogin() {

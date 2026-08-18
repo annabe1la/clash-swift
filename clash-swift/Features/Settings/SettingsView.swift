@@ -10,6 +10,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 self.systemCard
+                if self.appModel.isTunEnabled { self.tunCard }
                 self.inboundCard
                 self.listenersCard
                 self.processCard
@@ -101,6 +102,56 @@ struct SettingsView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: TUN 设置
+
+    private var tunCard: some View {
+        Card(title: L("TUN 设置", "TUN Settings")) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(L("网络栈 Stack", "Stack"))
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { self.appModel.override.tunStack ?? .gvisor },
+                        set: { self.appModel.override.tunStack = $0 }))
+                    {
+                        ForEach(TunStack.allCases) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden().fixedSize()
+                }
+                Toggle(L("DNS 劫持 (dns-hijack any:53)", "DNS hijack (any:53)"),
+                       isOn: optBool(self.$appModel.override.tunDnsHijack, default: true))
+                Toggle(L("自动路由 (auto-route)", "Auto-route"),
+                       isOn: optBool(self.$appModel.override.tunAutoRoute, default: true))
+                Toggle(L("严格路由 (strict-route)", "Strict route"),
+                       isOn: optBool(self.$appModel.override.tunStrictRoute, default: false))
+                HStack {
+                    Text("MTU").frame(width: 120, alignment: .leading)
+                    TextField("1500", text: intBinding(self.$appModel.override.tunMTU))
+                        .textFieldStyle(.roundedBorder).frame(width: 100)
+                }
+                Divider()
+                Text(L("排除网段 (route-exclude-address)——这些网段不走 TUN",
+                       "Excluded CIDRs (route-exclude-address) — bypass TUN"))
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(self.appModel.override.tunExcludedCIDRs.indices, id: \.self) { i in
+                    HStack {
+                        TextField("192.168.0.0/16", text: Binding(
+                            get: { self.appModel.override.tunExcludedCIDRs[i] },
+                            set: { self.appModel.override.tunExcludedCIDRs[i] = $0 }))
+                            .textFieldStyle(.roundedBorder)
+                        Button(role: .destructive) {
+                            self.appModel.override.tunExcludedCIDRs.remove(at: i)
+                        } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                    }
+                }
+                Button {
+                    self.appModel.override.tunExcludedCIDRs.append("")
+                } label: { Label(L("添加排除网段", "Add excluded CIDR"), systemImage: "plus") }
             }
         }
     }
@@ -306,5 +357,11 @@ private func stringBinding(_ source: Binding<String?>) -> Binding<String> {
 private func boolBinding(_ source: Binding<Bool?>) -> Binding<Bool> {
     Binding(
         get: { source.wrappedValue ?? false },
+        set: { source.wrappedValue = $0 })
+}
+
+private func optBool(_ source: Binding<Bool?>, default def: Bool) -> Binding<Bool> {
+    Binding(
+        get: { source.wrappedValue ?? def },
         set: { source.wrappedValue = $0 })
 }

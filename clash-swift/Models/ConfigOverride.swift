@@ -44,7 +44,16 @@ struct ConfigOverride: Codable, Equatable {
     var allowLan: Bool?
     var ipv6: Bool?
     var bindAddress: String?
+
+    // TUN（参考 clash-verge）
     var tunEnabled: Bool?
+    var tunStack: TunStack?              // 默认 gvisor
+    var tunAutoRoute: Bool?              // 默认 true
+    var tunStrictRoute: Bool?            // 默认 false
+    var tunDnsHijack: Bool?              // 默认 true（劫持 any:53）
+    var tunMTU: Int?                     // 默认 1500
+    var tunExcludedCIDRs: [String] = []  // route-exclude-address 排除网段
+
     var listeners: [ListenerConfig] = []
     var processRules: [ProcessRule] = []
 
@@ -52,5 +61,21 @@ struct ConfigOverride: Codable, Equatable {
         self.mixedPort == nil && self.httpPort == nil && self.socksPort == nil
             && self.allowLan == nil && self.ipv6 == nil && self.bindAddress == nil
             && self.tunEnabled == nil && self.listeners.isEmpty && self.processRules.isEmpty
+    }
+}
+
+/// TUN 网络栈。
+enum TunStack: String, Codable, CaseIterable, Identifiable {
+    case gvisor
+    case system
+    case mixed
+
+    var id: String { self.rawValue }
+    var title: String {
+        switch self {
+        case .gvisor: "gVisor"
+        case .system: "System"
+        case .mixed: "Mixed"
+        }
     }
 }

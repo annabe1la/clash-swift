@@ -55,15 +55,23 @@ struct ConfigOverrideService {
         if let v = override.ipv6 { root["ipv6"] = v }
         if let v = override.bindAddress, !v.isEmpty { root["bind-address"] = v }
 
-        // TUN（保留源配置 tun 其余键，仅覆盖 enable，并补齐启用所需默认）
+        // TUN（参考 clash-verge：stack/auto-route/strict-route/dns-hijack/mtu/排除网段）
         if let tunOn = override.tunEnabled {
             var tun = (root["tun"] as? [String: Any]) ?? [:]
             tun["enable"] = tunOn
             if tunOn {
-                if tun["stack"] == nil { tun["stack"] = "mixed" }
-                if tun["auto-route"] == nil { tun["auto-route"] = true }
-                if tun["auto-detect-interface"] == nil { tun["auto-detect-interface"] = true }
-                if tun["dns-hijack"] == nil { tun["dns-hijack"] = ["any:53"] }
+                tun["stack"] = (override.tunStack ?? .gvisor).rawValue
+                tun["auto-route"] = override.tunAutoRoute ?? true
+                tun["auto-detect-interface"] = true
+                tun["strict-route"] = override.tunStrictRoute ?? false
+                tun["mtu"] = override.tunMTU ?? 1500
+                tun["dns-hijack"] = (override.tunDnsHijack ?? true) ? ["any:53"] : []
+                let cidrs = override.tunExcludedCIDRs.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                if cidrs.isEmpty {
+                    tun.removeValue(forKey: "route-exclude-address")
+                } else {
+                    tun["route-exclude-address"] = cidrs
+                }
             }
             root["tun"] = tun
         }

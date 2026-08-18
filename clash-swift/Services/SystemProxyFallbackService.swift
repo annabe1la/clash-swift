@@ -37,32 +37,38 @@ struct SystemProxyFallbackService {
     }
 
     private func buildShellScript(enabled: Bool, host: String, port: Int) -> String {
+        let NS = "/usr/sbin/networksetup"
         let stateCmds: String
         if enabled {
             stateCmds = """
-            networksetup -setwebproxy "$svc" \(host) \(port)
-            networksetup -setsecurewebproxy "$svc" \(host) \(port)
-            networksetup -setsocksfirewallproxy "$svc" \(host) \(port)
-            networksetup -setwebproxystate "$svc" on
-            networksetup -setsecurewebproxystate "$svc" on
-            networksetup -setsocksfirewallproxystate "$svc" on
+            \(NS) -setwebproxy "$svc" \(host) \(port)
+            \(NS) -setsecurewebproxy "$svc" \(host) \(port)
+            \(NS) -setsocksfirewallproxy "$svc" \(host) \(port)
+            \(NS) -setwebproxystate "$svc" on
+            \(NS) -setsecurewebproxystate "$svc" on
+            \(NS) -setsocksfirewallproxystate "$svc" on
             """
         } else {
             stateCmds = """
-            networksetup -setwebproxystate "$svc" off
-            networksetup -setsecurewebproxystate "$svc" off
-            networksetup -setsocksfirewallproxystate "$svc" off
+            \(NS) -setwebproxystate "$svc" off
+            \(NS) -setsecurewebproxystate "$svc" off
+            \(NS) -setsocksfirewallproxystate "$svc" off
             """
         }
+        // 绝对路径、不用 set -e（单条失败不整体中断）；对检测到的主服务操作，
+        // 若检测不到则对所有已启用服务都设一遍（best-effort）。
         return """
         #!/bin/bash
-        set -e
-        dev=$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')
-        svc=$(networksetup -listnetworkserviceorder | awk -v dev="$dev" '
-          /Hardware Port/ { name=$0; sub(/.*Hardware Port: /,"",name); sub(/, Device.*/,"",name) }
-          $0 ~ ("Device: " dev ")") { print name; exit }')
-        if [ -z "$svc" ]; then svc="Wi-Fi"; fi
+        dev=$(/sbin/route -n get default 2>/dev/null | /usr/bin/awk '/interface:/{print $2}')
+        svc=$(/usr/sbin/networksetup -listnetworkserviceorder | /usr/bin/awk -v dev="$dev" '/Hardware Port/ { name=$0; sub(/.*Hardware Port: /,"",name); sub(/, Device.*/,"",name) } $0 ~ ("Device: " dev ")") { print name; exit }')
+        if [ -n "$svc" ]; then
         \(stateCmds)
+        else
+          /usr/sbin/networksetup -listallnetworkservices | tail -n +2 | while IFS= read -r svc; do
+        \(stateCmds)
+          done
+        fi
+        exit 0
         """
     }
 

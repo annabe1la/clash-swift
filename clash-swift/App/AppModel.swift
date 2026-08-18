@@ -476,14 +476,33 @@ final class AppModel: ObservableObject {
 
         // 免签名后备：管理员授权调 networksetup（阻塞式，放到后台线程避免卡 UI）。
         let service = self.systemProxyFallback
+        var applyError: Error?
         do {
             try await Task.detached {
                 try service.apply(enabled: enabled, host: host, port: port)
             }.value
-            self.isSystemProxyEnabled = enabled
-            self.systemProxyStatusText = enabled ? "\(host):\(port)（HTTP/HTTPS/SOCKS）" : nil
         } catch {
-            self.errorMessage = error.localizedDescription
+            applyError = error
+        }
+
+        // 自校验：实际读一次系统代理状态，以真实结果为准（而非只信退出码）。
+        let diag = self.diagnosticsService
+        let readout = await Task.detached { diag.readSystemProxyState() }.value
+        let actuallyOn = readout.anyEnabled
+        self.isSystemProxyEnabled = actuallyOn
+        self.systemProxyReadout = readout
+
+        if enabled, actuallyOn {
+            let p = readout.http ?? readout.https ?? readout.socks
+            self.systemProxyStatusText = p.map { "\($0.server):\($0.port)（\(readout.service)）" }
+        } else if !enabled, !actuallyOn {
+            self.systemProxyStatusText = nil
+        } else {
+            // 与期望不符：给出错误（含 apply 报错或授权取消）
+            if let applyError { self.errorMessage = applyError.localizedDescription }
+            else { self.errorMessage = enabled
+                ? L("系统代理未生效（可能授权被取消或网络服务异常）。", "System proxy didn't take effect.")
+                : L("系统代理未能关闭。", "Failed to disable system proxy.") }
         }
     }
 

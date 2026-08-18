@@ -95,9 +95,21 @@ struct OverviewView: View {
                 }
                 .toggleStyle(.switch).disabled(self.appModel.isBusy)
                 Spacer()
+
+                Button {
+                    Task { await self.appModel.copyTerminalProxyCommand() }
+                } label: {
+                    Label(L("复制终端代理命令", "Copy terminal proxy cmd"), systemImage: "terminal")
+                }
+                .controlSize(.small)
+                .disabled(!self.appModel.isRunning)
             }
             if let status = self.appModel.systemProxyStatusText {
                 Text(status).font(.caption).foregroundStyle(.secondary)
+            }
+            if let action = self.appModel.actionMessage {
+                Text(action).font(.caption).foregroundStyle(.green)
+                    .textSelection(.enabled).lineLimit(2)
             }
         }
         .cardSurface()

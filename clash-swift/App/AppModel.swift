@@ -6,6 +6,7 @@
 //  只保留全窗口应用需要的内核控制核心时序，剥离菜单栏专有状态。
 //
 
+import AppKit
 import Combine
 import Foundation
 
@@ -401,6 +402,27 @@ final class AppModel: ObservableObject {
             self.logLevel = previous
             self.errorMessage = "设置日志级别失败：\(error.localizedDescription)"
         }
+    }
+
+    /// 生成并复制终端代理命令（export http_proxy=... 之类）。
+    func copyTerminalProxyCommand() async {
+        guard self.isRunning else {
+            self.errorMessage = L("请先启动内核。", "Start the core first.")
+            return
+        }
+        let ports = await self.resolveSystemProxyPorts()
+        guard let http = ports.httpPort ?? ports.socksPort,
+              let socks = ports.socksPort ?? ports.httpPort
+        else {
+            self.errorMessage = L("无法确定代理端口。", "Cannot determine proxy ports.")
+            return
+        }
+        let host = Self.hostComponent(of: self.clientController)
+        let command = BuildTerminalProxyCommandUseCase().execute(
+            host: host, httpPort: http, socksPort: socks)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        self.actionMessage = "\(L("已复制终端代理命令", "Terminal proxy command copied"))：\(command)"
     }
 
     func updateGeoData() async { await self.runMaintenance(.upgradeGeo, ok: L("GEO 数据更新已触发", "GEO update triggered")) }

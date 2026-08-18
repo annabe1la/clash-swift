@@ -142,12 +142,17 @@ struct DiagnosticsService: Sendable {
     // MARK: 结束进程（管理员）
 
     /// 以管理员权限结束进程（用于 root 拥有的内核/特权服务）。弹一次授权。
+    /// 用 osascript 子进程（可在后台线程可靠弹框）。
     func killElevated(pid: Int32) -> Bool {
-        let source = "do shell script \"/bin/kill -TERM \(pid)\" with administrator privileges"
-        guard let script = NSAppleScript(source: source) else { return false }
-        var error: NSDictionary?
-        script.executeAndReturnError(&error)
-        return error == nil
+        let apple = "do shell script \"/bin/kill -TERM \(pid)\" with administrator privileges"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", apple]
+        process.standardError = Pipe()
+        process.standardOutput = Pipe()
+        do { try process.run() } catch { return false }
+        process.waitUntilExit()
+        return process.terminationStatus == 0
     }
 
     // MARK: shell

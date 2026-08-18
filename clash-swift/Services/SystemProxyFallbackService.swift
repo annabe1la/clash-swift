@@ -67,19 +67,28 @@ struct SystemProxyFallbackService {
     }
 
     private func runAsAdmin(shellPath: String) throws {
-        let appleScript = "do shell script \"/bin/bash \(shellPath)\" with administrator privileges"
-        var errorDict: NSDictionary?
-        guard let script = NSAppleScript(source: appleScript) else {
-            throw SystemProxyFallbackError.commandFailed("脚本构造失败")
+        // 用 osascript 子进程执行（可在后台线程可靠弹授权框，NSAppleScript 有主线程限制）。
+        // shell 路径含空格(Application Support)，必须单引号包裹。
+        let inner = "/bin/bash '\(shellPath)'"
+        let appleScript = "do shell script \"\(inner)\" with administrator privileges"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", appleScript]
+        let errPipe = Pipe()
+        process.standardError = errPipe
+        process.standardOutput = Pipe()
+        do {
+            try process.run()
+        } catch {
+            throw SystemProxyFallbackError.commandFailed(error.localizedDescription)
         }
-        script.executeAndReturnError(&errorDict)
-        if let errorDict {
-            let code = errorDict[NSAppleScript.errorNumber] as? Int ?? 0
-            if code == -128 {
+        process.waitUntilExit()
+        if process.terminationStatus != 0 {
+            let msg = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            if msg.contains("-128") || msg.lowercased().contains("cancel") {
                 throw SystemProxyFallbackError.authorizationCancelled
             }
-            let message = errorDict[NSAppleScript.errorMessage] as? String ?? "未知错误"
-            throw SystemProxyFallbackError.commandFailed(message)
+            throw SystemProxyFallbackError.commandFailed(msg.isEmpty ? "exit \(process.terminationStatus)" : msg)
         }
     }
 }

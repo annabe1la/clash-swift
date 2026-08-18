@@ -6,6 +6,7 @@ struct OverviewView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var traffic: TrafficStore
     @EnvironmentObject private var connections: ConnectionsStore
+    @EnvironmentObject private var proxyStore: ProxyStore
 
     private let statColumns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
@@ -85,7 +86,11 @@ struct OverviewView: View {
                 {
                     Text(L("系统代理", "System Proxy")).font(.callout)
                 }
-                .toggleStyle(.switch).disabled(!self.appModel.isRunning)
+                .toggleStyle(.switch)
+                .disabled(!self.appModel.isRunning || self.proxyStore.isProxySyncing)
+                if self.proxyStore.isProxySyncing {
+                    ProgressView().controlSize(.small)
+                }
 
                 Toggle(isOn: Binding(
                     get: { self.appModel.isTunEnabled },

@@ -248,8 +248,15 @@ final class AppModel: ObservableObject {
         do {
             try await self.coreRepository.validateConfig(configPath: configPath)
         } catch {
-            self.lifecycle = .failed(reason: error.localizedDescription)
-            self.errorMessage = "配置校验失败：\(error.localizedDescription)"
+            let raw = error.localizedDescription
+            self.lifecycle = .failed(reason: raw)
+            if raw.lowercased().contains("timed out") || raw.contains("MMDB") {
+                self.errorMessage = L(
+                    "配置校验超时——多半是首次启动在下载地理数据库(GeoIP/MMDB)，网络较慢或 geo 源被墙。请稍后重试（下载成功后会缓存，之后就快了）；若一直失败，改用国内可达的 geox-url。",
+                    "Config test timed out — likely downloading GeoIP/MMDB on first run. Retry (it caches once done); if it keeps failing, switch to a reachable geox-url.")
+            } else {
+                self.errorMessage = "\(L("配置校验失败", "Config test failed"))：\(raw)"
+            }
             return
         }
 

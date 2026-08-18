@@ -133,7 +133,7 @@ final class MihomoProcessManager: MihomoControlling, @unchecked Sendable {
     init(
         workingDirectoryManager: WorkingDirectoryManager = WorkingDirectoryManager(),
         fileManager: FileManager = .default,
-        configValidationTimeout: TimeInterval = 10,
+        configValidationTimeout: TimeInterval = 60,
         lifecycleQueue: DispatchQueue? = nil,
         validationQueue: DispatchQueue? = nil)
     {
